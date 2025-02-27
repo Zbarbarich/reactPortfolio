@@ -8,7 +8,7 @@ env:
   AWS_REGION: us-east-2
   ECR_REPOSITORY: staticsite/zachportfolio
   ECS_SERVICE: zachportfolio-service
-  ECS_CLUSTER: ZachPortfolioCluster
+  ECS_CLUSTER: ZachPortfolioCluster2
   CONTAINER_NAME: zachportfolio-container
 
 jobs:
