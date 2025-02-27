@@ -2,6 +2,11 @@ import { useState } from 'react'
 import ProjectCard from '../components/shared/ProjectCard'
 import Modal from '../components/shared/Modal'
 import Carousel from '../components/shared/Carousel'
+import mvThumbnail from '../assets/images/magnusvisibility/mvthumbnail.png'
+import mv1 from '../assets/images/magnusvisibility/mv1.png'
+import mv2 from '../assets/images/magnusvisibility/mv2.png'
+import mv3 from '../assets/images/magnusvisibility/mv3.png'
+import mv4 from '../assets/images/magnusvisibility/mv4.png'
 
 const Projects = () => {
   const [selectedProject, setSelectedProject] = useState(null)
@@ -10,13 +15,13 @@ const Projects = () => {
   const projects = [
     {
       title: "Magnus Visibility",
-      thumbnail: "/src/assets/images/magnusvisibility/mvthumbnail.png",
+      thumbnail: mvThumbnail,
       shortDescription: "A comprehensive ERP system focused on production availability tracking, featuring both admin and regular user functionality.",
       images: [
-        "/src/assets/images/magnusvisibility/mv1.png",
-        "/src/assets/images/magnusvisibility/mv2.png",
-        "/src/assets/images/magnusvisibility/mv3.png",
-        "/src/assets/images/magnusvisibility/mv4.png"
+        mv1,
+        mv2,
+        mv3,
+        mv4
       ],
       fullDescription: "Magnus Visibility is an enterprise-level ERP system designed to track and manage production availability. It features comprehensive admin controls and user-friendly interfaces for regular users, enabling efficient monitoring of production metrics and downtime analysis.",
       demoLink: "https://youtu.be/1X7a-nmDDSQ",
