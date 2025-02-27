@@ -58,6 +58,7 @@ npm run dev
 
 ```bash
 npm run build
+```
 
 ## 🚢 Deployment
 
@@ -84,12 +85,7 @@ Mobile-first approach with breakpoints:
 - Desktop: lg (1024px)
 - Extra Large: xl (1280px)
 
-## 🔐 Security Features
 
-- Environment variable protection
-- Secure external links with `rel="noopener noreferrer"`
-- AWS security best practices
-- Protected API endpoints
 
 ## 🤝 Contributing
 
@@ -101,9 +97,6 @@ While this is a personal portfolio, suggestions and feedback are welcome:
 4. Push to the branch
 5. Open a pull request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## 👤 Author
 
