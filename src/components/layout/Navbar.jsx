@@ -7,7 +7,7 @@ const Navbar = () => {
     <nav className="bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md fixed w-full z-10 shadow-sm">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-          <Link to="/" className="text-xl font-bold text-text-light dark:text-text-dark hover:text-primary-light transition-colors">
+          <Link to="/" className="text-xl font-bold text-text-light dark:text-text-dark">
             Innovate. Integrate. Inspire.
           </Link>
           <div className="flex items-center space-x-8">
