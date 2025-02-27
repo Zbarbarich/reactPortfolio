@@ -11,6 +11,7 @@ import gitIcon from '../../assets/icons/git.png'
 import awsIcon from '../../assets/icons/aws.png'
 import htmlIcon from '../../assets/icons/html.png'
 import cssIcon from '../../assets/icons/css.png'
+import PropTypes from 'prop-types'
 
 const TechStack = () => {
   const technologies = {
@@ -48,6 +49,13 @@ const TechStack = () => {
       <span className="text-sm font-bold text-text-light dark:text-white mt-2 text-center">{tech.name}</span>
     </div>
   )
+
+  TechIcon.propTypes = {
+    tech: PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      icon: PropTypes.string.isRequired,
+    }).isRequired,
+  }
 
   return (
     <div className="w-full">
