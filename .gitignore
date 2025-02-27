@@ -30,4 +30,11 @@ dist-ssr
 
 node_modules
 
+# Docker
+.docker
+docker-compose.override.yml
+
+# AWS
+.aws
+
 
