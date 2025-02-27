@@ -34,6 +34,13 @@ export default {
           '100%': { transform: 'translateX(-33.33%)' }
         },
       },
+      zIndex: {
+        '50': '50',
+      },
+      transitionProperty: {
+        'height': 'height',
+        'spacing': 'margin, padding',
+      }
     },
   },
   plugins: [],

@@ -19,7 +19,7 @@ const TechIcon = ({ tech }) => (
     style={{
       border: 'double 4px transparent',
       borderRadius: '8px',
-      backgroundImage: 'linear-gradient(var(--background-color), var(--background-color)), linear-gradient(to right, #4fd1c5, #7dd3fc)',
+      backgroundImage: 'linear-gradient(var(--background-color), var(--background-color)), linear-gradient(to right, #4fd1c5, #535bf2)',
       backgroundOrigin: 'border-box',
       backgroundClip: 'padding-box, border-box'
     }}
