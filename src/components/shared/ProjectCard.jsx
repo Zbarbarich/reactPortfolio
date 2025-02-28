@@ -6,7 +6,7 @@ const ProjectCard = ({ project }) => {
 
   return (
     <div 
-      className="relative cursor-pointer transition-transform duration-300 hover:scale-105"
+      className="relative cursor-pointer transition-transform duration-300 hover:scale-105 h-fit w-full"
       style={{
         border: 'double 4px transparent',
         borderRadius: '8px',
@@ -49,6 +49,11 @@ ProjectCard.propTypes = {
   project: PropTypes.shape({
     title: PropTypes.string.isRequired,
     thumbnail: PropTypes.string.isRequired,
+    shortDescription: PropTypes.string.isRequired,
+    tags: PropTypes.arrayOf(PropTypes.shape({
+      label: PropTypes.string.isRequired,
+      type: PropTypes.oneOf(['status', 'tech']).isRequired,
+    })).isRequired,
     onOpen: PropTypes.func.isRequired,
   }).isRequired,
 }
