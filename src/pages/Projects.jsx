@@ -33,9 +33,9 @@ const Projects = () => {
 
       ],
       fullDescription: "Magnus Visibility is an ERP system designed to track and manage \
-production availability, developed as my final capstone for CMU certification. Leading \
-both front-end design and backend architecture, I contributed to database setup and \
-initial EC2 implementation via AWS.\n\n\
+production availability, developed as my final capstone for CMU certification. On this project I had a heavy hand in \
+both front-end design and backend architecture, while my teammates took charge of the database setup and initial EC2 \
+implementation via AWS. During this process we all made sure to be involved in each other's implementations\n\n\
 The project showcases my ability to work effectively in a team setting, implementing \
 CI/CD pipelines using Docker within Docker containers, and integrating multiple stack \
 components. Completed within a two-week sprint, the project continues to evolve with \
