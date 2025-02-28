@@ -15,23 +15,24 @@ const About = () => {
         </div>
         <div className="text-gray-400">
           <p className="mb-4">
-            As a Carnegie Mellon University certified Full Stack Developer with a decade of enterprise IT experience, 
-            I bring a unique blend of technical infrastructure knowledge and modern development expertise to the table. 
-            My background in network administration and user support has shaped my approach to development, enabling me 
-            to create solutions that are not only technically sound but also highly intuitive and user-focused. 
-            
-            I excel at bridging the gap between complex technical requirements and practical business needs, having 
-            spent years translating technical concepts for diverse stakeholders. Now, I&apos;m passionate about leveraging 
-            my comprehensive tech background to build scalable, efficient applications that solve real-world challenges. 
-            
-            I&apos;m particularly drawn to opportunities where I can combine my infrastructure knowledge with modern 
-            development practices to create robust, user-centric solutions.
+            As a Full Stack Developer certified by Carnegie Mellon University, 
+            I bring a solid decade of experience in IT, including network and 
+            system administration, as well as end-user support. My time in IT 
+            has given me a unique perspective on development, allowing me to 
+            create user-centric, scalable solutions that blend strong technical 
+            foundations with practical, real-world application. I&apos;m passionate 
+            about leveraging this experience to build efficient, intuitive 
+            applications, and I&apos;m excited about the opportunity to apply my 
+            skills in development to solve new challenges.  
             
             <br></br><br></br>
             
-            This site not only serves as a central location for all of my professional information, but also as an 
-            example of my dedication to creating functional, enterprise-level front-end interfaces within React. 
-            Please take a look at some of my additional projects to see examples of my full-stack development skills!
+            This site serves as a hub for my professional journey and a showcase 
+            of my full-stack development projects. Here, you can explore my work 
+            with front-end interfaces built using React, back-end development 
+            with Node.js, and database management with PostgreSQL. I focus on 
+            creating seamless, full-stack applications that deliver both 
+            functionality and performance.
           </p>
         </div>
       </div>

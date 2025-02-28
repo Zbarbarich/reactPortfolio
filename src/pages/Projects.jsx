@@ -32,7 +32,14 @@ const Projects = () => {
         mv5
 
       ],
-      fullDescription: "Magnus Visibility is an enterprise-level ERP system designed to track and manage production availability. It features comprehensive admin controls and user-friendly interfaces for regular users, enabling efficient monitoring of production metrics and downtime analysis.",
+      fullDescription: "Magnus Visibility is an ERP system designed to track and manage \
+production availability, developed as my final capstone for CMU certification. Leading \
+both front-end design and backend architecture, I contributed to database setup and \
+initial EC2 implementation via AWS.\n\n\
+The project showcases my ability to work effectively in a team setting, implementing \
+CI/CD pipelines using Docker within Docker containers, and integrating multiple stack \
+components. Completed within a two-week sprint, the project continues to evolve with \
+planned updates.",
       demoLink: "https://youtu.be/1X7a-nmDDSQ",
       codeLink: "https://gitlab.com/wattrs7/magnuserpdowndetail.git",
       tags: [
@@ -81,7 +88,12 @@ const Projects = () => {
         portfolioTablet,
         portfolioMobile
       ],
-      fullDescription: "This portfolio site is built with React and features responsive design, dark mode support, and modern UI components. It's containerized with Docker and deployed on AWS using ECR and ECS.",
+      fullDescription: "This portfolio site demonstrates modern React development practices, \
+featuring responsive design, dark mode support, and containerized deployment using Docker \
+and AWS (ECR/ECS). The project utilizes GitHub Actions for CI/CD, contrasting with my \
+capstone's GitLab workflow.\n\n\
+Try viewing this site on different devices or resizing your browser window - the screenshots \
+above show how the layout adapts to desktop, tablet, and mobile screen sizes!",
       codeLink: "https://github.com/Zbarbarich/reactPortfolio.git",
       tags: [
         { label: 'Live', type: 'status' },
@@ -136,57 +148,65 @@ const Projects = () => {
         onClose={() => setSelectedProject(null)}
       >
         {selectedProject && !showVideo ? (
-          <div className="space-y-4">
+          <div className="space-y-4 sm:space-y-6 w-full">
             <button 
               onClick={() => setSelectedProject(null)}
-              className="absolute top-2 right-2 text-gray-400 hover:text-primary-light"
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 text-gray-400 hover:text-primary-light text-2xl sm:text-3xl font-bold z-20"
             >
               ×
             </button>
-            <Carousel images={selectedProject.images} />
-            <h2 className="text-2xl font-bold">{selectedProject.title}</h2>
-            {selectedProject.siteUrl && (
-              <a 
-                href={selectedProject.siteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:text-secondary transition block text-sm"
-              >
-                @{new URL(selectedProject.siteUrl).host}
-              </a>
-            )}
-            <div className="flex flex-wrap gap-2 mb-4">
-              {selectedProject.tags.map((tag, index) => (
-                <span
-                  key={index}
-                  className={`text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1 rounded-full ${
-                    tag.type === 'status' 
-                      ? 'bg-teal-200 text-teal-900' 
-                      : 'bg-sky-200 text-sky-900'
-                  }`}
-                >
-                  {tag.label}
-                </span>
-              ))}
+            <div className="max-w-2xl mx-auto">
+              <Carousel images={selectedProject.images} />
             </div>
-            <p className="text-gray-400">{selectedProject.fullDescription}</p>
-            <div className="flex space-x-4">
-              {selectedProject.demoLink && (
-                <button 
-                  onClick={handleDemoClick}
-                  className="text-primary hover:text-secondary transition"
+            <div className="max-w-[95%] sm:max-w-[85%] mx-auto space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="text-xl sm:text-2xl font-bold">{selectedProject.title}</h2>
+                {selectedProject.siteUrl && (
+                  <a 
+                    href={selectedProject.siteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:text-secondary transition text-sm whitespace-nowrap"
+                  >
+                    Visit Site →
+                  </a>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                {selectedProject.tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className={`text-xs px-2 py-0.5 rounded-full ${
+                      tag.type === 'status' 
+                        ? 'bg-teal-200 text-teal-900' 
+                        : 'bg-sky-200 text-sky-900'
+                    }`}
+                  >
+                    {tag.label}
+                  </span>
+                ))}
+              </div>
+              <p className="text-gray-400 whitespace-pre-wrap leading-relaxed text-sm sm:text-base">
+                {selectedProject.fullDescription}
+              </p>
+              <div className="flex space-x-4 pt-2">
+                {selectedProject.demoLink && (
+                  <button 
+                    onClick={handleDemoClick}
+                    className="text-primary hover:text-secondary transition text-sm"
+                  >
+                    Watch Demo →
+                  </button>
+                )}
+                <a 
+                  href={selectedProject.codeLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:text-secondary transition text-sm"
                 >
-                  Watch Demo
-                </button>
-              )}
-              <a 
-                href={selectedProject.codeLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:text-secondary transition"
-              >
-                View Code
-              </a>
+                  View Code →
+                </a>
+              </div>
             </div>
           </div>
         ) : (
