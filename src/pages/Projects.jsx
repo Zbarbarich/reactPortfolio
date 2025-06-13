@@ -81,7 +81,7 @@ planned updates.",
     {
       title: "Portfolio Site",
       thumbnail: portfolioThumbnail,
-      siteUrl: "https://zach-barbarich.net/",
+      siteUrl: "https://zachbarbarich.net/",
       shortDescription: "A modern, responsive portfolio website showcasing my projects and skills.",
       images: [
         portfolioDesktop,
@@ -90,8 +90,8 @@ planned updates.",
       ],
       fullDescription: "This portfolio site demonstrates modern React development practices, \
 featuring responsive design, dark mode support, and containerized deployment using Docker \
-and AWS (ECR/ECS). The project utilizes GitHub Actions for CI/CD, contrasting with my \
-capstone's GitLab workflow.\n\n\
+and AWS (ECR/ECS).  The project utilizes GitHub Actions for CI/CD, contrasting with my \
+capstone's GitLab workflow. Since intial deployment, I have deployed the site using Netlify for cost-efficiency.\n\n\
 Try viewing this site on different devices or resizing your browser window - the screenshots \
 above show how the layout adapts to desktop, tablet, and mobile screen sizes!",
       codeLink: "https://github.com/Zbarbarich/reactPortfolio.git",
@@ -106,7 +106,7 @@ above show how the layout adapts to desktop, tablet, and mobile screen sizes!",
         { label: 'HTML', type: 'tech' },
         { label: 'TailwindCSS', type: 'tech' },
         { label: 'Docker', type: 'tech' },
-        { label: 'AWS', type: 'tech' },
+        { label: 'Netlify', type: 'tech' },
         { label: 'GitHub Actions', type: 'tech' },
         { label: 'Nginx', type: 'tech' }
       ]
