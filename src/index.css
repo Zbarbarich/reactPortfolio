@@ -434,6 +434,7 @@
   pointer-events: none;
   overflow: hidden;
   opacity: 1;
+  transform: translateZ(0);
 }
 
 .corner-node-web canvas {

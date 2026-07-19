@@ -26,36 +26,38 @@ const Carousel = ({ images }) => {
     <div className="group/carousel relative">
       <div
         className="relative aspect-video overflow-hidden rounded-xl bg-gray-100/80 dark:bg-gray-800/80
-                   flex items-center justify-center
                    shadow-[inset_0_1px_8px_rgba(0,0,0,0.12)]
                    ring-1 ring-gray-200/40 dark:ring-gray-700/50"
       >
-        {/* Zoomed + blurred fill behind letterboxed / pillarboxed slides */}
+        {/* Blurred fill — covers letterbox/pillarbox gaps only */}
         <img
           src={currentSrc}
           alt=""
           aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover scale-125 blur-2xl opacity-70
-                     dark:opacity-60 pointer-events-none select-none"
+          className="absolute inset-0 h-full w-full object-cover scale-110 blur-xl opacity-60
+                     dark:opacity-50 pointer-events-none select-none"
           draggable={false}
         />
+
+        {/* Full image always visible inside the frame (never cropped) */}
+        <img
+          src={currentSrc}
+          alt={`Slide ${currentIndex + 1}`}
+          className="absolute inset-0 z-[1] h-full w-full object-contain pointer-events-none"
+          draggable={false}
+        />
+
         <a
           href={currentSrc}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="relative z-[1] max-h-full max-w-full flex items-center justify-center
-                     cursor-zoom-in focus-visible:outline-none focus-visible:ring-2
-                     focus-visible:ring-primary-light/50 rounded-sm"
+          className="absolute inset-0 z-[2] cursor-zoom-in
+                     focus-visible:outline-none focus-visible:ring-2
+                     focus-visible:ring-inset focus-visible:ring-primary-light/50"
           aria-label={`Open slide ${currentIndex + 1} full size in a new tab`}
           title="Open full size"
-        >
-          <img
-            src={currentSrc}
-            alt={`Slide ${currentIndex + 1}`}
-            className="max-h-full max-w-full object-contain"
-          />
-        </a>
+        />
       </div>
 
       {images.length > 1 && (
@@ -64,7 +66,7 @@ const Carousel = ({ images }) => {
             type="button"
             onClick={prev}
             aria-label="Previous image"
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-[2]
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-[3]
                        w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full
                        bg-background-dark/40 backdrop-blur-sm text-white text-sm
                        opacity-0 group-hover/carousel:opacity-100 focus:opacity-100
@@ -76,7 +78,7 @@ const Carousel = ({ images }) => {
             type="button"
             onClick={next}
             aria-label="Next image"
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-[2]
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-[3]
                        w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full
                        bg-background-dark/40 backdrop-blur-sm text-white text-sm
                        opacity-0 group-hover/carousel:opacity-100 focus:opacity-100

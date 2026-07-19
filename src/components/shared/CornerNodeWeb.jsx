@@ -49,28 +49,29 @@ const CornerNodeWeb = () => {
     let lastScrollY = window.scrollY || 0
     let last = performance.now()
     let activityUntil = 0
-    let scrollRaf = 0
-    let pendingScrollDy = 0
 
-    // Touch / narrow screens: fewer nodes, softer parallax, no double scroll+touch
+    // Phone / small viewport only — do NOT use bare (pointer: coarse); hybrid
+    // desktops with touchscreens match that and would disable click/hover.
     const isMobile =
-      window.matchMedia('(pointer: coarse)').matches ||
-      window.matchMedia('(max-width: 768px)').matches
+      window.matchMedia('(max-width: 768px)').matches ||
+      window.matchMedia('(hover: none) and (pointer: coarse)').matches
 
     const drift = { x: 0, y: 0, tx: 0, ty: 0 }
     const origin = { x: 0.5, y: 0.52 }
     const pointer = { x: -9999, y: -9999, active: false }
 
-    const scrollGain = isMobile ? 0.22 : 0.48
-    const scrollClamp = isMobile ? 90 : 180
-    const driftClampX = isMobile ? 22 : 42
-    const driftClampY = isMobile ? 28 : 52
+    const scrollGain = isMobile ? 0.34 : 0.48
+    const scrollClamp = isMobile ? 110 : 180
+    const driftClampX = isMobile ? 28 : 42
+    const driftClampY = isMobile ? 40 : 52
     const instantNudge = isMobile ? 0 : 0.1
-    const wakeHoldScroll = isMobile ? 900 : 1400
-    const maxDpr = isMobile ? 1.25 : 2
-    const nodeBudgetDivisor = isMobile ? 22000 : 12000
-    const nodeCap = isMobile ? 56 : 120
-    const nodeFloor = isMobile ? 28 : 60
+    const wakeHoldScroll = isMobile ? 1600 : 1400
+    const maxDpr = isMobile ? 1 : 2
+    // Free-node targets (corner anchors are added on top — not counted against this)
+    const nodeBudgetDivisor = isMobile ? 18000 : 12000
+    const nodeCap = isMobile ? 52 : 120
+    const nodeFloor = isMobile ? 36 : 60
+    let scrollYAbs = window.scrollY || 0
 
     const wake = (holdMs = 900) => {
       activityUntil = Math.max(activityUntil, performance.now() + holdMs)
@@ -84,8 +85,14 @@ const CornerNodeWeb = () => {
       // Recent input keeps the loop hot; pointer.active alone does not
       // (a still cursor over the page should be allowed to sleep).
       if (performance.now() < activityUntil) return true
-      if (Math.abs(drift.x) > 0.12 || Math.abs(drift.y) > 0.12) return true
-      if (Math.abs(drift.tx) > 0.12 || Math.abs(drift.ty) > 0.12) return true
+      if (isMobile) {
+        // Absolute-scroll targets can stay non-zero while parked mid-page —
+        // only keep drawing while we're still catching up to the target.
+        if (Math.abs(drift.x - drift.tx) > 0.2 || Math.abs(drift.y - drift.ty) > 0.2) return true
+      } else {
+        if (Math.abs(drift.x) > 0.12 || Math.abs(drift.y) > 0.12) return true
+        if (Math.abs(drift.tx) > 0.12 || Math.abs(drift.ty) > 0.12) return true
+      }
       for (let i = 0; i < nodes.length; i += 1) {
         const n = nodes[i]
         if (n.pulse > 0.008) return true
@@ -162,7 +169,10 @@ const CornerNodeWeb = () => {
       if (key === seedKey && nodes.length) return
       seedKey = key
 
-      const count = Math.round(Math.min(nodeCap, Math.max(nodeFloor, (w * h) / nodeBudgetDivisor)))
+      // Free-node count only — corner anchors are extra so Home stays full-field on mobile
+      const freeTarget = Math.round(
+        Math.min(nodeCap, Math.max(nodeFloor, (w * h) / nodeBudgetDivisor))
+      )
       nodes = []
 
       if (showCorner) {
@@ -175,14 +185,22 @@ const CornerNodeWeb = () => {
         nodes.push(makeNode(ox, oy, 0.35, true))
       }
 
+      let free = 0
       let guard = 0
-      while (nodes.length < count && guard < count * 10) {
+      while (free < freeTarget && guard < freeTarget * 24) {
         guard += 1
         const x = rand(0, w)
         const y = rand(0, h)
-        const d = Math.hypot(x - ox, y - oy) / Math.hypot(w, h)
-        if (Math.random() > 0.4 + (1 - d) * 0.5) continue
+
+        // Uniform field scatter. Softly avoid the immediate hub so free nodes
+        // don't visually pile onto Andy's corner rays (especially on small screens).
+        if (showCorner) {
+          const dHub = Math.hypot(x - ox, y - oy)
+          if (dHub < 36 && Math.random() < 0.75) continue
+        }
+
         nodes.push(makeNode(x, y, rand(0.05, 0.95), false))
+        free += 1
       }
     }
 
@@ -206,11 +224,8 @@ const CornerNodeWeb = () => {
       const ny = clamp(dy, -scrollClamp, scrollClamp) * scrollGain
       drift.tx = clamp(drift.tx + nx * 0.9, -driftClampX, driftClampX)
       drift.ty = clamp(drift.ty + ny * 0.9, -driftClampY, driftClampY)
-      // Desktop: snappier follow. Mobile: let the rAF tick lerp for butter smoother motion.
-      if (!isMobile) {
-        drift.x = lerp(drift.x, drift.tx, 0.5)
-        drift.y = lerp(drift.y, drift.ty, 0.5)
-      }
+      drift.x = lerp(drift.x, drift.tx, 0.5)
+      drift.y = lerp(drift.y, drift.ty, 0.5)
 
       if (instantNudge > 0) {
         nodes.forEach((n) => {
@@ -222,22 +237,13 @@ const CornerNodeWeb = () => {
       wake(wakeHoldScroll)
     }
 
-    const flushPendingScroll = () => {
-      scrollRaf = 0
-      if (Math.abs(pendingScrollDy) < 0.2) {
-        pendingScrollDy = 0
-        return
-      }
-      const dy = pendingScrollDy
-      pendingScrollDy = 0
-      applyScrollDelta(0, dy)
-      if (showCorner) updateOrigin()
-    }
-
-    const queueScrollDy = (dy) => {
-      pendingScrollDy += dy
-      if (scrollRaf) return
-      scrollRaf = requestAnimationFrame(flushPendingScroll)
+    /** Mobile: map absolute scrollY → drift target (no delta spikes / rubber-band chop). */
+    const syncMobileScrollTarget = () => {
+      scrollYAbs = window.scrollY || document.documentElement.scrollTop || 0
+      // Continuous, predictable parallax — holds with page position instead of decaying
+      drift.tx = clamp(scrollYAbs * 0.012, -driftClampX, driftClampX)
+      drift.ty = clamp(-scrollYAbs * 0.055, -driftClampY, driftClampY)
+      wake(wakeHoldScroll)
     }
 
     const onPointerMove = (e) => {
@@ -252,7 +258,8 @@ const CornerNodeWeb = () => {
     }
 
     const onPointerDown = (e) => {
-      if (e.button !== 0) return
+      // Primary button / touch only
+      if (e.pointerType === 'mouse' && e.button !== 0) return
       const x = e.clientX
       const y = e.clientY
 
@@ -262,11 +269,16 @@ const CornerNodeWeb = () => {
         const strength = 1 - d / 200
         n.pulse = Math.max(n.pulse, strength)
 
-        // Only free nodes leave their seat — corner nodes stay put
+        // Free nodes scatter; corner anchors stay put but still pulse/glow
         if (!n.anchored && d > 0.5) {
           const push = strength * 22
-          n.x += ((n.x - x) / d) * push
-          n.y += ((n.y - y) / d) * push
+          const ox = ((n.x - x) / d) * push
+          const oy = ((n.y - y) / d) * push
+          n.x += ox
+          n.y += oy
+          // Nudge home slightly so mobile's ease-to-home doesn't erase the click
+          n.baseX += ox * 0.4
+          n.baseY += oy * 0.4
           n.vx += ((n.x - x) / d) * strength * 6
           n.vy += ((n.y - y) / d) * strength * 6
         }
@@ -275,16 +287,16 @@ const CornerNodeWeb = () => {
     }
 
     const onScroll = () => {
+      if (isMobile) {
+        syncMobileScrollTarget()
+        return
+      }
       const y = window.scrollY || document.documentElement.scrollTop || 0
       const dy = y - lastScrollY
       lastScrollY = y
       if (Math.abs(dy) <= 0.5) return
-      // Coalesce scroll deltas to one apply per animation frame (critical on iOS)
-      if (isMobile) queueScrollDy(dy)
-      else {
-        applyScrollDelta(0, dy)
-        if (showCorner) updateOrigin()
-      }
+      applyScrollDelta(0, dy)
+      if (showCorner) updateOrigin()
     }
 
     const onWheel = (e) => {
@@ -332,10 +344,17 @@ const CornerNodeWeb = () => {
         const dt = Math.min(32, now - last) / 16.67
         last = now
 
-        drift.x = lerp(drift.x, drift.tx, isMobile ? 0.14 : 0.1)
-        drift.y = lerp(drift.y, drift.ty, isMobile ? 0.14 : 0.1)
-        drift.tx = lerp(drift.tx, 0, isMobile ? 0.035 : 0.02)
-        drift.ty = lerp(drift.ty, 0, isMobile ? 0.035 : 0.02)
+        if (isMobile) {
+          // Hold target from scroll position; smooth follow only (no decay fight)
+          drift.x = lerp(drift.x, drift.tx, 0.22)
+          drift.y = lerp(drift.y, drift.ty, 0.22)
+          if (showCorner) updateOrigin()
+        } else {
+          drift.x = lerp(drift.x, drift.tx, 0.1)
+          drift.y = lerp(drift.y, drift.ty, 0.1)
+          drift.tx = lerp(drift.tx, 0, 0.02)
+          drift.ty = lerp(drift.ty, 0, 0.02)
+        }
 
         const px = pointer.x
         const py = pointer.y
@@ -371,10 +390,9 @@ const CornerNodeWeb = () => {
           }
         }
 
-        // Free nodes: spring toward base + scroll drift
+        // Free nodes: spring on desktop; direct ease on mobile (keeps glow/look identical)
         nodes.forEach((n) => {
           if (n.anchored) {
-            // Still allow hover/click grow on corner nodes
             let targetScale = 1
             if (pointer.active) {
               const d = Math.hypot(n.x - px, n.y - py)
@@ -390,6 +408,19 @@ const CornerNodeWeb = () => {
 
           const homeX = n.baseX + drift.x * n.depth
           const homeY = n.baseY + drift.y * n.depth
+
+          if (isMobile) {
+            // Ease toward home, but keep velocity briefly after clicks
+            n.x += n.vx
+            n.y += n.vy
+            n.vx *= 0.82
+            n.vy *= 0.82
+            n.x = lerp(n.x, homeX, 0.16)
+            n.y = lerp(n.y, homeY, 0.16)
+            n.phase += 0.012 * dt
+            return
+          }
+
           n.vx += (homeX - n.x) * 0.045
           n.vy += (homeY - n.y) * 0.045
           n.vx *= 0.88
@@ -445,7 +476,7 @@ const CornerNodeWeb = () => {
           ctx.fill()
         }
 
-        const linkDist = Math.min(w, h) * 0.155
+        const linkDist = Math.min(w, h) * (isMobile ? 0.13 : 0.155)
 
         for (let i = 0; i < nodes.length; i += 1) {
           const a = nodes[i]
@@ -518,7 +549,6 @@ const CornerNodeWeb = () => {
       window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('wheel', onWheel, true)
       document.removeEventListener('visibilitychange', onVisibility)
-      if (scrollRaf) cancelAnimationFrame(scrollRaf)
     }
   }, [showCorner])
 

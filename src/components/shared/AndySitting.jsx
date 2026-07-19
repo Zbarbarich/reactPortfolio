@@ -90,12 +90,17 @@ const AndySitting = () => {
       body.lookY = 0
     }
 
+    const isMobile =
+      window.matchMedia('(max-width: 768px)').matches ||
+      window.matchMedia('(hover: none) and (pointer: coarse)').matches
+
     const applyScroll = (dy) => {
-      if (reducedMotion) return
+      if (reducedMotion || isMobile) return
       body.scrollY = clamp(body.scrollY - dy * 0.05, -20, 20)
     }
 
     const onScroll = () => {
+      if (isMobile) return
       const y = window.scrollY || document.documentElement.scrollTop || 0
       const dy = y - lastScrollY
       lastScrollY = y
@@ -103,6 +108,7 @@ const AndySitting = () => {
     }
 
     const onWheel = (e) => {
+      if (isMobile) return
       if (Math.abs(e.deltaY) > 0.4 || Math.abs(e.deltaX) > 0.4) applyScroll(e.deltaY)
     }
 
