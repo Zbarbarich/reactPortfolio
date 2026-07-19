@@ -69,13 +69,15 @@ const CornerNodeWeb = () => {
     const driftClampX = 42
     const driftClampY = 52
     const instantNudge = isMobile ? 0 : 0.1
-    const wakeHoldScroll = isMobile ? 1800 : 1400
+    const wakeHoldScroll = isMobile ? 2000 : 1400
     const maxDpr = isMobile ? 1 : 2
-    // Slower than finger scroll so motion feels calm, not whipped
-    const mobileCamFactor = 0.22
+    // Keep field motion clearly slower than the finger (long pages used to feel whipped)
+    const mobileCamFactor = 0.07
+    const mobileCamEase = 0.08
     const nodeBudgetDivisor = isMobile ? 14000 : 12000
     const nodeCap = isMobile ? 64 : 120
     const nodeFloor = isMobile ? 48 : 60
+    let mobileLinkDist = 120
 
     const wake = (holdMs = 900) => {
       activityUntil = Math.max(activityUntil, performance.now() + holdMs)
@@ -186,16 +188,17 @@ const CornerNodeWeb = () => {
       }
 
       if (isMobile) {
-        // Even grid + jitter across a tall field so density stays spread out
-        const cols = 6
-        const rows = Math.max(9, Math.ceil(freeTarget / cols))
+        // Even grid + jitter; link distance is derived from cell size so neighbors always connect
+        const cols = 5
+        const rows = Math.max(8, Math.ceil(freeTarget / cols))
+        const cellW = w / cols
+        const cellH = fieldH / rows
+        mobileLinkDist = Math.hypot(cellW, cellH) * 1.2
         let placed = 0
         for (let row = 0; row < rows && placed < freeTarget; row += 1) {
           for (let col = 0; col < cols && placed < freeTarget; col += 1) {
-            const cellW = w / cols
-            const cellH = fieldH / rows
-            const x = clamp((col + 0.5) * cellW + rand(-cellW * 0.32, cellW * 0.32), 4, w - 4)
-            const y = wrap((row + 0.5) * cellH + rand(-cellH * 0.32, cellH * 0.32), fieldH)
+            const x = clamp((col + 0.5) * cellW + rand(-cellW * 0.28, cellW * 0.28), 4, w - 4)
+            const y = wrap((row + 0.5) * cellH + rand(-cellH * 0.28, cellH * 0.28), fieldH)
             nodes.push(makeNode(x, y, rand(0.05, 0.95), false))
             placed += 1
           }
@@ -257,7 +260,7 @@ const CornerNodeWeb = () => {
 
     /** Mobile: scroll position → camera through the field (down = new, up = earlier). */
     const syncMobileCamera = () => {
-      const y = window.scrollY || document.documentElement.scrollTop || 0
+      const y = Math.max(0, window.scrollY || document.documentElement.scrollTop || 0)
       camera.ty = y * mobileCamFactor
       wake(wakeHoldScroll)
     }
@@ -277,6 +280,8 @@ const CornerNodeWeb = () => {
       if (e.pointerType === 'mouse' && e.button !== 0) return
       const x = e.clientX
       const y = e.clientY
+      // On touch, only pulse — push fights with page scroll / long-press drag
+      const allowPush = e.pointerType !== 'touch'
 
       nodes.forEach((n) => {
         const d = Math.hypot(n.x - x, n.y - y)
@@ -284,7 +289,7 @@ const CornerNodeWeb = () => {
         const strength = 1 - d / 200
         n.pulse = Math.max(n.pulse, strength)
 
-        if (!n.anchored && d > 0.5) {
+        if (allowPush && !n.anchored && d > 0.5) {
           const push = strength * 22
           const ox = ((n.x - x) / d) * push
           const oy = ((n.y - y) / d) * push
@@ -356,8 +361,7 @@ const CornerNodeWeb = () => {
         last = now
 
         if (isMobile) {
-          // Smooth camera chase — no clamp, so long pages keep traveling the field
-          camera.y = lerp(camera.y, camera.ty, 0.16)
+          camera.y = lerp(camera.y, camera.ty, mobileCamEase)
           if (showCorner) updateOrigin()
         } else {
           drift.x = lerp(drift.x, drift.tx, 0.1)
@@ -483,17 +487,19 @@ const CornerNodeWeb = () => {
           ctx.fill()
         }
 
-        const linkDist = Math.min(w, h) * (isMobile ? 0.12 : 0.155)
-        const inBand = (n) => n.y > -50 && n.y < h + 50
+        const linkDist = isMobile
+          ? mobileLinkDist
+          : Math.min(w, h) * 0.155
+        const inBand = (n) => n.y > -60 && n.y < h + 60
 
         for (let i = 0; i < nodes.length; i += 1) {
           const a = nodes[i]
           if (isMobile && !a.anchored && !inBand(a)) continue
 
-          if (!a.anchored && showCorner && inBand(a)) {
+          if (!a.anchored && showCorner && (!isMobile || inBand(a))) {
             const dCorner = Math.hypot(a.x - ox, a.y - oy)
-            if (dCorner < linkDist * 2.4) {
-              const alpha = (1 - dCorner / (linkDist * 2.4)) * 0.45
+            if (dCorner < linkDist * 2.2) {
+              const alpha = (1 - dCorner / (linkDist * 2.2)) * 0.45
               ctx.beginPath()
               ctx.moveTo(a.x, a.y)
               ctx.lineTo(ox, oy)
@@ -506,8 +512,6 @@ const CornerNodeWeb = () => {
           for (let j = i + 1; j < nodes.length; j += 1) {
             const b = nodes[j]
             if (isMobile && !b.anchored && !inBand(b)) continue
-            // Skip wrap-seam ghost links on mobile
-            if (isMobile && !a.anchored && !b.anchored && Math.abs(a.y - b.y) > h * 0.55) continue
             const d = dist(a, b)
             if (d > linkDist) continue
             const alpha = (1 - d / linkDist) * 0.65 + Math.max(a.pulse, b.pulse) * 0.25
