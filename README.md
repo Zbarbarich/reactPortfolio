@@ -37,7 +37,8 @@ Production hosting is **Netlify** only:
 1. Connect the GitHub repo in Netlify (or use the Netlify CLI)
 2. Build command: `npm run build` · publish directory: `dist` (from `netlify.toml`)
 3. Push to `main` to trigger a deploy
-4. Configure Form notifications for the `contact` form in the Netlify UI
+4. Configure Form notifications for the `contact` form in the Netlify UI  
+   (React posts to `/contact-form.html` so the SPA rewrite does not 404 submissions)
 
 ## Project structure
 

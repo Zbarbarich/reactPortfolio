@@ -38,7 +38,9 @@ const Contact = () => {
 
     setStatus('loading')
     try {
-      const res = await fetch('/', {
+      // POST to a real static HTML file (not "/") so Netlify Forms receives the
+      // submission instead of the SPA /* → /index.html rewrite returning 404.
+      const res = await fetch('/contact-form.html', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: encode({
