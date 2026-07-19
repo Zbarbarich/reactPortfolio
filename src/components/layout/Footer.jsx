@@ -1,12 +1,12 @@
 const Footer = () => {
   return (
-    <footer className="bg-white/5 py-8">
+    <footer className="border-t border-gray-200/20 dark:border-gray-700/30 bg-white/5 py-3 sm:py-3.5">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <div className="text-center md:text-left mb-4 md:mb-0">
-            <p className="text-gray-400">© {new Date().getFullYear()} Zach Barbarich. All rights reserved.</p>
-          </div>
-          <div className="flex space-x-6">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-3">
+          <p className="text-xs sm:text-sm text-gray-400 text-center sm:text-left">
+            © {new Date().getFullYear()} Zach Barbarich. All rights reserved.
+          </p>
+          <div className="flex items-center space-x-4 text-xs sm:text-sm">
             <a
               href="https://github.com/Zbarbarich/"
               target="_blank"
