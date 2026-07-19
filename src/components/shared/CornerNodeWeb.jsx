@@ -14,7 +14,6 @@ const rgba = (c, a) => `rgba(${c.r},${c.g},${c.b},${a})`
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y)
 const rand = (min, max) => min + Math.random() * (max - min)
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
-const wrap = (v, span) => ((v % span) + span) % span
 
 const CORNER_RAYS = [
   { x: 0, y: -1, weight: 1.2 },
@@ -25,8 +24,8 @@ const CORNER_RAYS = [
 /**
  * Site-wide teal node web. Corner lines only on Home (fixed behind Andy).
  * Free nodes react to hover / click / scroll. Corner nodes stay locked.
- * Mobile: camera pans a tall wrapped field so scroll reveals new nodes
- * smoothly (scroll up returns earlier nodes).
+ * Mobile shares the same look/feel (seed, spring, links, glow, tap bounce);
+ * scroll/touch inputs use a separate adapter (rAF coalesce, dy caps).
  */
 const CornerNodeWeb = () => {
   const canvasRef = useRef(null)
@@ -42,7 +41,6 @@ const CornerNodeWeb = () => {
     let w = 0
     let h = 0
     let dpr = 1
-    let fieldH = 1
     let raf = 0
     let nodes = []
     let running = true
@@ -59,25 +57,27 @@ const CornerNodeWeb = () => {
       window.matchMedia('(hover: none) and (pointer: coarse)').matches
 
     const drift = { x: 0, y: 0, tx: 0, ty: 0 }
-    // Mobile vertical camera through the free-node field (world units ≈ px)
-    const camera = { y: 0, ty: 0 }
     const origin = { x: 0.5, y: 0.52 }
     const pointer = { x: -9999, y: -9999, active: false }
 
-    const scrollGain = 0.48
+    const scrollGain = isMobile ? 0.32 : 0.48
     const scrollClamp = 180
+    const mobileDyCap = 48
     const driftClampX = 42
     const driftClampY = 52
     const instantNudge = isMobile ? 0 : 0.1
     const wakeHoldScroll = isMobile ? 2000 : 1400
     const maxDpr = isMobile ? 1 : 2
-    // Keep field motion clearly slower than the finger (long pages used to feel whipped)
-    const mobileCamFactor = 0.07
-    const mobileCamEase = 0.08
-    const nodeBudgetDivisor = isMobile ? 14000 : 12000
-    const nodeCap = isMobile ? 64 : 120
-    const nodeFloor = isMobile ? 48 : 60
-    let mobileLinkDist = 120
+    const nodeBudgetDivisor = isMobile ? 18000 : 12000
+    const nodeCap = isMobile ? 45 : 120
+    const nodeFloor = isMobile ? 32 : 60
+
+    // Mobile: coalesce scroll into one applyScrollDelta per frame
+    let pendingScrollDy = 0
+    let scrollFlushRaf = 0
+
+    // Touch: defer push until we know it was a tap, not a scroll drag
+    let touchTap = null
 
     const wake = (holdMs = 900) => {
       activityUntil = Math.max(activityUntil, performance.now() + holdMs)
@@ -89,12 +89,8 @@ const CornerNodeWeb = () => {
 
     const isBusy = () => {
       if (performance.now() < activityUntil) return true
-      if (isMobile) {
-        if (Math.abs(camera.y - camera.ty) > 0.35) return true
-      } else {
-        if (Math.abs(drift.x) > 0.12 || Math.abs(drift.y) > 0.12) return true
-        if (Math.abs(drift.tx) > 0.12 || Math.abs(drift.ty) > 0.12) return true
-      }
+      if (Math.abs(drift.x) > 0.12 || Math.abs(drift.y) > 0.12) return true
+      if (Math.abs(drift.tx) > 0.12 || Math.abs(drift.ty) > 0.12) return true
       for (let i = 0; i < nodes.length; i += 1) {
         const n = nodes[i]
         if (n.pulse > 0.008) return true
@@ -167,7 +163,6 @@ const CornerNodeWeb = () => {
     const seedNodes = () => {
       const ox = origin.x * w
       const oy = origin.y * h
-      fieldH = Math.max(h * 2.5, h + 1)
       const key = `${showCorner ? 'c' : 'f'}:${Math.round(ox)}:${Math.round(oy)}:${w}x${h}:${isMobile ? 'm' : 'd'}`
       if (key === seedKey && nodes.length) return
       seedKey = key
@@ -187,36 +182,18 @@ const CornerNodeWeb = () => {
         nodes.push(makeNode(ox, oy, 0.35, true))
       }
 
-      if (isMobile) {
-        // Even grid + jitter; link distance is derived from cell size so neighbors always connect
-        const cols = 5
-        const rows = Math.max(8, Math.ceil(freeTarget / cols))
-        const cellW = w / cols
-        const cellH = fieldH / rows
-        mobileLinkDist = Math.hypot(cellW, cellH) * 1.2
-        let placed = 0
-        for (let row = 0; row < rows && placed < freeTarget; row += 1) {
-          for (let col = 0; col < cols && placed < freeTarget; col += 1) {
-            const x = clamp((col + 0.5) * cellW + rand(-cellW * 0.28, cellW * 0.28), 4, w - 4)
-            const y = wrap((row + 0.5) * cellH + rand(-cellH * 0.28, cellH * 0.28), fieldH)
-            nodes.push(makeNode(x, y, rand(0.05, 0.95), false))
-            placed += 1
-          }
+      let free = 0
+      let guard = 0
+      while (free < freeTarget && guard < freeTarget * 24) {
+        guard += 1
+        const x = rand(0, w)
+        const y = rand(0, h)
+        if (showCorner) {
+          const dHub = Math.hypot(x - ox, y - oy)
+          if (dHub < 36 && Math.random() < 0.75) continue
         }
-      } else {
-        let free = 0
-        let guard = 0
-        while (free < freeTarget && guard < freeTarget * 24) {
-          guard += 1
-          const x = rand(0, w)
-          const y = rand(0, h)
-          if (showCorner) {
-            const dHub = Math.hypot(x - ox, y - oy)
-            if (dHub < 36 && Math.random() < 0.75) continue
-          }
-          nodes.push(makeNode(x, y, rand(0.05, 0.95), false))
-          free += 1
-        }
+        nodes.push(makeNode(x, y, rand(0.05, 0.95), false))
+        free += 1
       }
     }
 
@@ -232,17 +209,19 @@ const CornerNodeWeb = () => {
       updateOrigin()
       seedKey = ''
       seedNodes()
-      if (isMobile) {
-        const y = window.scrollY || document.documentElement.scrollTop || 0
-        camera.ty = y * mobileCamFactor
-        camera.y = camera.ty
-      }
+      lastScrollY = window.scrollY || document.documentElement.scrollTop || 0
       wake(1200)
     }
 
     const applyScrollDelta = (dx, dy) => {
-      const nx = clamp(dx, -scrollClamp, scrollClamp) * scrollGain
-      const ny = clamp(dy, -scrollClamp, scrollClamp) * scrollGain
+      let adx = dx
+      let ady = dy
+      if (isMobile) {
+        ady = clamp(ady, -mobileDyCap, mobileDyCap)
+        adx = clamp(adx, -mobileDyCap, mobileDyCap)
+      }
+      const nx = clamp(adx, -scrollClamp, scrollClamp) * scrollGain
+      const ny = clamp(ady, -scrollClamp, scrollClamp) * scrollGain
       drift.tx = clamp(drift.tx + nx * 0.9, -driftClampX, driftClampX)
       drift.ty = clamp(drift.ty + ny * 0.9, -driftClampY, driftClampY)
       drift.x = lerp(drift.x, drift.tx, 0.5)
@@ -258,31 +237,16 @@ const CornerNodeWeb = () => {
       wake(wakeHoldScroll)
     }
 
-    /** Mobile: scroll position → camera through the field (down = new, up = earlier). */
-    const syncMobileCamera = () => {
-      const y = Math.max(0, window.scrollY || document.documentElement.scrollTop || 0)
-      camera.ty = y * mobileCamFactor
-      wake(wakeHoldScroll)
+    const flushMobileScroll = () => {
+      scrollFlushRaf = 0
+      const dy = pendingScrollDy
+      pendingScrollDy = 0
+      if (Math.abs(dy) <= 0.5) return
+      applyScrollDelta(0, dy)
+      if (showCorner) updateOrigin()
     }
 
-    const onPointerMove = (e) => {
-      pointer.x = e.clientX
-      pointer.y = e.clientY
-      pointer.active = true
-      wake(400)
-    }
-
-    const onPointerLeave = () => {
-      pointer.active = false
-    }
-
-    const onPointerDown = (e) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return
-      const x = e.clientX
-      const y = e.clientY
-      // On touch, only pulse — push fights with page scroll / long-press drag
-      const allowPush = e.pointerType !== 'touch'
-
+    const applyBounceAt = (x, y, allowPush) => {
       nodes.forEach((n) => {
         const d = Math.hypot(n.x - x, n.y - y)
         if (d >= 200) return
@@ -304,15 +268,63 @@ const CornerNodeWeb = () => {
       wake(1400)
     }
 
-    const onScroll = () => {
-      if (isMobile) {
-        syncMobileCamera()
+    const onPointerMove = (e) => {
+      pointer.x = e.clientX
+      pointer.y = e.clientY
+      pointer.active = true
+      if (touchTap && e.pointerId === touchTap.pointerId) {
+        const moved = Math.hypot(e.clientX - touchTap.x, e.clientY - touchTap.y)
+        if (moved > 10) touchTap.moved = true
+      }
+      wake(400)
+    }
+
+    const onPointerLeave = () => {
+      pointer.active = false
+    }
+
+    const onPointerDown = (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return
+
+      if (e.pointerType === 'touch') {
+        touchTap = {
+          pointerId: e.pointerId,
+          x: e.clientX,
+          y: e.clientY,
+          moved: false,
+        }
         return
       }
+
+      applyBounceAt(e.clientX, e.clientY, true)
+    }
+
+    const onPointerUp = (e) => {
+      if (!touchTap || e.pointerId !== touchTap.pointerId) return
+      const tap = touchTap
+      touchTap = null
+      if (tap.moved) return
+      applyBounceAt(tap.x, tap.y, true)
+    }
+
+    const onPointerCancel = (e) => {
+      if (touchTap && e.pointerId === touchTap.pointerId) touchTap = null
+    }
+
+    const onScroll = () => {
       const y = window.scrollY || document.documentElement.scrollTop || 0
       const dy = y - lastScrollY
       lastScrollY = y
       if (Math.abs(dy) <= 0.5) return
+
+      if (isMobile) {
+        pendingScrollDy += dy
+        if (!scrollFlushRaf) {
+          scrollFlushRaf = requestAnimationFrame(flushMobileScroll)
+        }
+        return
+      }
+
       applyScrollDelta(0, dy)
       if (showCorner) updateOrigin()
     }
@@ -327,6 +339,10 @@ const CornerNodeWeb = () => {
       visible = document.visibilityState !== 'hidden'
       if (!visible) {
         cancelAnimationFrame(raf)
+        if (scrollFlushRaf) {
+          cancelAnimationFrame(scrollFlushRaf)
+          scrollFlushRaf = 0
+        }
         looping = false
         return
       }
@@ -335,6 +351,8 @@ const CornerNodeWeb = () => {
 
     window.addEventListener('pointermove', onPointerMove, { passive: true })
     window.addEventListener('pointerdown', onPointerDown, { passive: true })
+    window.addEventListener('pointerup', onPointerUp, { passive: true })
+    window.addEventListener('pointercancel', onPointerCancel, { passive: true })
     document.documentElement.addEventListener('mouseleave', onPointerLeave)
     window.addEventListener('resize', resize)
     window.addEventListener('scroll', onScroll, { passive: true, capture: true })
@@ -360,15 +378,11 @@ const CornerNodeWeb = () => {
         const dt = Math.min(32, now - last) / 16.67
         last = now
 
-        if (isMobile) {
-          camera.y = lerp(camera.y, camera.ty, mobileCamEase)
-          if (showCorner) updateOrigin()
-        } else {
-          drift.x = lerp(drift.x, drift.tx, 0.1)
-          drift.y = lerp(drift.y, drift.ty, 0.1)
-          drift.tx = lerp(drift.tx, 0, 0.02)
-          drift.ty = lerp(drift.ty, 0, 0.02)
-        }
+        drift.x = lerp(drift.x, drift.tx, 0.1)
+        drift.y = lerp(drift.y, drift.ty, 0.1)
+        drift.tx = lerp(drift.tx, 0, 0.02)
+        drift.ty = lerp(drift.ty, 0, 0.02)
+        if (showCorner) updateOrigin()
 
         const px = pointer.x
         const py = pointer.y
@@ -415,18 +429,6 @@ const CornerNodeWeb = () => {
             n.scale = lerp(n.scale, targetScale, targetScale > n.scale ? 0.2 : 0.08)
             n.pulse = Math.max(0, n.pulse - 0.045 * dt)
             n.phase += 0.012 * dt
-            return
-          }
-
-          if (isMobile) {
-            // Pan the whole field together (no depth stretch) so spacing stays even
-            n.x = n.baseX + n.vx
-            n.y = wrap(n.baseY - camera.y, fieldH)
-            n.vx *= 0.84
-            n.vy *= 0.84
-            n.pulse = Math.max(0, n.pulse - 0.04 * dt)
-            n.phase += 0.012 * dt
-            n.scale = lerp(n.scale, 1 + n.pulse * 0.9, 0.18)
             return
           }
 
@@ -487,16 +489,12 @@ const CornerNodeWeb = () => {
           ctx.fill()
         }
 
-        const linkDist = isMobile
-          ? mobileLinkDist
-          : Math.min(w, h) * 0.155
-        const inBand = (n) => n.y > -60 && n.y < h + 60
+        const linkDist = Math.min(w, h) * 0.155
 
         for (let i = 0; i < nodes.length; i += 1) {
           const a = nodes[i]
-          if (isMobile && !a.anchored && !inBand(a)) continue
 
-          if (!a.anchored && showCorner && (!isMobile || inBand(a))) {
+          if (!a.anchored && showCorner) {
             const dCorner = Math.hypot(a.x - ox, a.y - oy)
             if (dCorner < linkDist * 2.2) {
               const alpha = (1 - dCorner / (linkDist * 2.2)) * 0.45
@@ -511,7 +509,6 @@ const CornerNodeWeb = () => {
 
           for (let j = i + 1; j < nodes.length; j += 1) {
             const b = nodes[j]
-            if (isMobile && !b.anchored && !inBand(b)) continue
             const d = dist(a, b)
             if (d > linkDist) continue
             const alpha = (1 - d / linkDist) * 0.65 + Math.max(a.pulse, b.pulse) * 0.25
@@ -525,7 +522,6 @@ const CornerNodeWeb = () => {
         }
 
         nodes.forEach((n) => {
-          if (isMobile && !n.anchored && !inBand(n)) return
           const c = mixColor(n.tint)
           const breathe = 1 + Math.sin(n.phase) * 0.1
           const r = n.size * breathe * n.scale
@@ -560,8 +556,11 @@ const CornerNodeWeb = () => {
       running = false
       looping = false
       cancelAnimationFrame(raf)
+      if (scrollFlushRaf) cancelAnimationFrame(scrollFlushRaf)
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerCancel)
       document.documentElement.removeEventListener('mouseleave', onPointerLeave)
       window.removeEventListener('resize', resize)
       window.removeEventListener('scroll', onScroll, true)
