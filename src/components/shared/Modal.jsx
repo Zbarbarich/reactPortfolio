@@ -1,25 +1,69 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import PropTypes from 'prop-types'
 
 const Modal = ({ isOpen, onClose, children }) => {
+  const panelRef = useRef(null)
+  const scrollHideTimer = useRef(null)
+
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = 'unset'
+    if (!isOpen) return undefined
+
+    document.body.style.overflow = 'hidden'
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose()
     }
+    window.addEventListener('keydown', onKeyDown)
+
     return () => {
       document.body.style.overflow = 'unset'
+      window.removeEventListener('keydown', onKeyDown)
+      if (scrollHideTimer.current) window.clearTimeout(scrollHideTimer.current)
     }
-  }, [isOpen])
+  }, [isOpen, onClose])
+
+  const onPanelScroll = () => {
+    const panel = panelRef.current
+    if (!panel) return
+    panel.classList.add('is-scrolling')
+    if (scrollHideTimer.current) window.clearTimeout(scrollHideTimer.current)
+    scrollHideTimer.current = window.setTimeout(() => {
+      panel.classList.remove('is-scrolling')
+    }, 900)
+  }
 
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/70 transition-opacity" onClick={onClose} />
-      <div className="flex min-h-full items-center justify-center p-2 sm:p-4">
-        <div className="relative transform overflow-hidden rounded-lg bg-background-light dark:bg-background-dark px-3 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-6 shadow-xl transition-all w-full max-w-lg mx-auto sm:max-w-2xl lg:max-w-3xl">
+      <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div className="flex min-h-full items-center justify-center p-3 sm:p-6">
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          onScroll={onPanelScroll}
+          className="modal-scroll glass-panel relative w-full max-w-4xl max-h-[90vh] overflow-y-auto
+                     px-4 pb-5 pt-12 sm:px-8 sm:pb-8 sm:pt-14 shadow-2xl
+                     shadow-primary-light/10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20
+                       w-9 h-9 flex items-center justify-center rounded-full
+                       border border-gray-300/40 dark:border-gray-600/50
+                       text-gray-400 hover:text-primary-light hover:border-primary-light/50
+                       hover:bg-primary-light/10 transition-colors text-lg leading-none"
+          >
+            ×
+          </button>
           {children}
         </div>
       </div>
@@ -33,4 +77,4 @@ Modal.propTypes = {
   children: PropTypes.node.isRequired,
 }
 
-export default Modal 
+export default Modal

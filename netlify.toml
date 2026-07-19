@@ -3,9 +3,9 @@
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "18" # or whatever version you're using
+  NODE_VERSION = "18"
 
 [[redirects]]
   from = "/*"
-  to = "/index.html"
-  status = 200 
+    to = "/index.html"
+  status = 200

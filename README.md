@@ -1,107 +1,56 @@
-# React Portfolio with AWS Integration
+# React Portfolio
 
-A modern, responsive portfolio website built with React, Vite, and TailwindCSS, featuring seamless AWS deployment through containerization.
+A modern, responsive portfolio website built with React, Vite, and TailwindCSS — deployed with Netlify CI/CD.
 
-## 🚀 Features
+**Live:** [zachbarbarich.net](https://zachbarbarich.net/)
 
-### Technical Implementation
-- **React + Vite**: Leveraging modern build tooling for optimal performance
-- **TailwindCSS**: Utilizing utility-first CSS for responsive design
-- **Dark Mode**: Full theme support with persistent user preferences
-- **Containerized Deployment**: Docker implementation with multi-stage builds
-- **AWS Integration**: Automated deployment pipeline using ECR and ECS
+## Features
 
-### UI/UX Elements
-- Responsive navigation with mobile-first design
-- Interactive tech stack display with gradient borders
-- Animated wave component for visual engagement
-- Seamless dark/light mode transitions
-- Professional layout with consistent styling
+- **React 19 + Vite** — fast builds and a snappy SPA
+- **TailwindCSS** — responsive light/dark UI with teal–indigo branding
+- **UX-forward interactions** — canvas node-web background, cursor-tracking Andy hero, glass tech carousel, tilt project cards
+- **Netlify CI/CD** — `git push` → build → publish `dist/`
+- **Netlify Forms** — contact form with honeypot spam protection
 
-## 🛠 Technology Stack
+## Technology Stack
 
-### Frontend
-- React 19.0.0
-- Vite 6.1.0
-- TailwindCSS 3.4.17
-- React Router DOM 6.29.0
+**Frontend:** React 19, Vite, TailwindCSS, React Router  
+**Hosting / CI/CD:** Netlify (`netlify.toml`), Node 18 build, SPA redirects, Forms
 
-### DevOps
-- Docker with multi-stage builds
-- GitHub Actions for CI/CD
-- AWS (ECR, ECS) for deployment
-- Nginx for static file serving
-
-## 🏗 Project Structure
-
-The application follows a component-based architecture with:
-- `/components`: Reusable UI components
-- `/pages`: Main route components
-- `/assets`: Static resources
-- `/components/shared`: Common components like ThemeToggle and TechStack
-
-## 🔧 Setup and Development
-
-1. Clone the repository
-2. Install dependencies:
-
-bash
-npm install
-
-3. Start the development server:
+## Setup
 
 ```bash
+npm install
 npm run dev
 ```
 
-4. Build for production:
+Production build:
 
 ```bash
 npm run build
 ```
 
-## 🚢 Deployment
+## Deployment
 
-The project uses a containerized deployment strategy with AWS:
+Production hosting is **Netlify** only:
 
-1. Multi-stage Docker build for optimized image size
-2. Automated deployments via GitHub Actions
-3. Container orchestration with AWS ECS
-4. Load balancing and SSL termination through AWS services
+1. Connect the GitHub repo in Netlify (or use the Netlify CLI)
+2. Build command: `npm run build` · publish directory: `dist` (from `netlify.toml`)
+3. Push to `main` to trigger a deploy
+4. Configure Form notifications for the `contact` form in the Netlify UI
 
-## 🎨 Styling Architecture
+## Project structure
 
-The project implements a systematic approach to styling:
-- Custom color schemes for light/dark modes
-- Responsive design breakpoints
-- Animation utilities for enhanced UX
-- Consistent typography system
+- `/src/components` — reusable UI (Navbar, Modal, Carousel, TechStack, Andy, etc.)
+- `/src/pages` — Home, About, Projects, Contact
+- `/src/assets` — images, icons, Andy SVGs
+- `/public` — `ZachBarbarichResume2026.pdf`, favicon
+- `netlify.toml` — build + SPA redirects
 
-## 📱 Responsive Design
+## Author
 
-Mobile-first approach with breakpoints:
-- Mobile: Base styling
-- Tablet: md (768px)
-- Desktop: lg (1024px)
-- Extra Large: xl (1280px)
-
-
-
-## 🤝 Contributing
-
-While this is a personal portfolio, suggestions and feedback are welcome:
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit changes
-4. Push to the branch
-5. Open a pull request
-
-
-## 👤 Author
-
-**Zach Barbarich**
-- LinkedIn: [Zach Barbarich](https://linkedin.com/in/zach-barbarich-193611333)
-- GitHub: [@Zbarbarich](https://github.com/Zbarbarich/)
+**Zach Barbarich**  
+- Portfolio: [zachbarbarich.net](https://zachbarbarich.net/)  
+- LinkedIn: [Zach Barbarich](https://linkedin.com/in/zach-barbarich-193611333)  
+- GitHub: [@Zbarbarich](https://github.com/Zbarbarich/)  
 - GitLab: [@zachery.barbarich](https://gitlab.com/zachery.barbarich)
-

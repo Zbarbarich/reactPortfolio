@@ -3,9 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
     <title>Zach Barbarich</title>
   </head>
   <body>
+    <!-- Netlify Forms detection (hidden; real UI is React Contact page).
+         Notifications → zachery.barbarich@gmail.com are set in Netlify UI. -->
+    <form name="contact" netlify netlify-honeypot="bot-field" hidden>
+      <input type="text" name="bot-field" />
+      <input type="text" name="name" />
+      <input type="email" name="email" />
+      <textarea name="message"></textarea>
+    </form>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
