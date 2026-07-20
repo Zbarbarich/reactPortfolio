@@ -1,21 +1,64 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import PropTypes from 'prop-types'
+
+const SWIPE_THRESHOLD = 40
 
 const Carousel = ({ images }) => {
   const [currentIndex, setCurrentIndex] = useState(0)
+  const touchStartX = useRef(null)
+  const touchStartY = useRef(null)
+  const swiped = useRef(false)
 
   const next = (e) => {
-    e.stopPropagation()
+    e?.stopPropagation?.()
     setCurrentIndex((prevIndex) =>
       prevIndex === images.length - 1 ? 0 : prevIndex + 1
     )
   }
 
   const prev = (e) => {
-    e.stopPropagation()
+    e?.stopPropagation?.()
     setCurrentIndex((prevIndex) =>
       prevIndex === 0 ? images.length - 1 : prevIndex - 1
     )
+  }
+
+  const onTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+    swiped.current = false
+  }
+
+  const onTouchMove = (e) => {
+    if (touchStartX.current == null) return
+    const dx = e.touches[0].clientX - touchStartX.current
+    const dy = e.touches[0].clientY - touchStartY.current
+    // Clearly horizontal — mark as swipe so the zoom link does not fire
+    if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) {
+      swiped.current = true
+    }
+  }
+
+  const onTouchEnd = (e) => {
+    if (touchStartX.current == null) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = e.changedTouches[0].clientY - (touchStartY.current ?? 0)
+    touchStartX.current = null
+    touchStartY.current = null
+
+    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+      swiped.current = true
+      if (dx < 0) next()
+      else prev()
+    }
+  }
+
+  const onZoomClick = (e) => {
+    e.stopPropagation()
+    if (swiped.current) {
+      e.preventDefault()
+      swiped.current = false
+    }
   }
 
   if (!images?.length) return null
@@ -27,7 +70,10 @@ const Carousel = ({ images }) => {
       <div
         className="relative aspect-video overflow-hidden rounded-xl bg-gray-100/80 dark:bg-gray-800/80
                    shadow-[inset_0_1px_8px_rgba(0,0,0,0.12)]
-                   ring-1 ring-gray-200/40 dark:ring-gray-700/50"
+                   ring-1 ring-gray-200/40 dark:ring-gray-700/50 touch-pan-y"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
         {/* Blurred fill — covers letterbox/pillarbox gaps only */}
         <img
@@ -51,7 +97,7 @@ const Carousel = ({ images }) => {
           href={currentSrc}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
+          onClick={onZoomClick}
           className="absolute inset-0 z-[2] cursor-zoom-in
                      focus-visible:outline-none focus-visible:ring-2
                      focus-visible:ring-inset focus-visible:ring-primary-light/50"

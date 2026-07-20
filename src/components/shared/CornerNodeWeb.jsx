@@ -11,9 +11,28 @@ const mixColor = (t) => ({
   b: Math.round(lerp(TEAL.b, PURPLE.b, t)),
 })
 const rgba = (c, a) => `rgba(${c.r},${c.g},${c.b},${a})`
-const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y)
-const rand = (min, max) => min + Math.random() * (max - min)
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
+
+/** Deterministic PRNG (mulberry32) from a string seed. */
+const hashString = (str) => {
+  let h = 2166136261
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
+
+const mulberry32 = (seed) => {
+  let a = seed >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
 
 const CORNER_RAYS = [
   { x: 0, y: -1, weight: 1.2 },
@@ -24,8 +43,7 @@ const CORNER_RAYS = [
 /**
  * Site-wide teal node web. Corner lines only on Home (fixed behind Andy).
  * Free nodes react to hover / click / scroll. Corner nodes stay locked.
- * Mobile shares the same look/feel (seed, spring, links, glow, tap bounce);
- * scroll/touch inputs use a separate adapter (rAF coalesce, dy caps).
+ * Mobile: one predetermined tall field per route; height-only resize never reseeds.
  */
 const CornerNodeWeb = () => {
   const canvasRef = useRef(null)
@@ -40,6 +58,8 @@ const CornerNodeWeb = () => {
 
     let w = 0
     let h = 0
+    let worldH = 0
+    let scrollOffsetY = 0
     let dpr = 1
     let raf = 0
     let nodes = []
@@ -47,9 +67,11 @@ const CornerNodeWeb = () => {
     let looping = false
     let visible = document.visibilityState !== 'hidden'
     let seedKey = ''
+    let lastSeedWidth = 0
     let lastScrollY = window.scrollY || 0
     let last = performance.now()
     let activityUntil = 0
+    let rng = Math.random
 
     // Phone / small viewport — avoid bare (pointer: coarse); hybrid desktops match it
     const isMobile =
@@ -69,8 +91,9 @@ const CornerNodeWeb = () => {
     const wakeHoldScroll = isMobile ? 2000 : 1400
     const maxDpr = isMobile ? 1 : 2
     const nodeBudgetDivisor = isMobile ? 18000 : 12000
-    const nodeCap = isMobile ? 45 : 120
-    const nodeFloor = isMobile ? 32 : 60
+    const nodeCap = isMobile ? 70 : 120
+    const nodeFloor = isMobile ? 48 : 60
+    const worldScrollGain = 0.55
 
     // Mobile: coalesce scroll into one applyScrollDelta per frame
     let pendingScrollDy = 0
@@ -78,6 +101,8 @@ const CornerNodeWeb = () => {
 
     // Touch: defer push until we know it was a tap, not a scroll drag
     let touchTap = null
+
+    const rand = (min, max) => min + rng() * (max - min)
 
     const wake = (holdMs = 900) => {
       activityUntil = Math.max(activityUntil, performance.now() + holdMs)
@@ -98,6 +123,25 @@ const CornerNodeWeb = () => {
         if (Math.abs(n.scale - 1) > 0.008) return true
       }
       return false
+    }
+
+    const computeWorldH = () => {
+      const docH = Math.max(
+        document.documentElement.scrollHeight || 0,
+        document.body?.scrollHeight || 0,
+        h
+      )
+      return Math.max(h * 3, docH + h)
+    }
+
+    const syncScrollOffset = () => {
+      if (!isMobile) {
+        scrollOffsetY = 0
+        return
+      }
+      const y = window.scrollY || document.documentElement.scrollTop || 0
+      const maxScroll = Math.max(0, worldH - h)
+      scrollOffsetY = clamp(y * worldScrollGain, 0, maxScroll)
     }
 
     const updateOrigin = () => {
@@ -160,15 +204,28 @@ const CornerNodeWeb = () => {
       }
     }
 
-    const seedNodes = () => {
+    const seedNodes = (force = false) => {
       const ox = origin.x * w
       const oy = origin.y * h
-      const key = `${showCorner ? 'c' : 'f'}:${Math.round(ox)}:${Math.round(oy)}:${w}x${h}:${isMobile ? 'm' : 'd'}`
-      if (key === seedKey && nodes.length) return
+      // Mobile: seed key ignores height so URL-bar resize never reshuffles
+      const key = isMobile
+        ? `${pathname}:${showCorner ? 'c' : 'f'}:${w}:m`
+        : `${showCorner ? 'c' : 'f'}:${Math.round(ox)}:${Math.round(oy)}:${w}x${h}:d`
+      if (!force && key === seedKey && nodes.length) return
       seedKey = key
+      lastSeedWidth = w
 
+      if (isMobile) {
+        rng = mulberry32(hashString(`${pathname}:m`))
+        worldH = computeWorldH()
+      } else {
+        rng = Math.random
+        worldH = h
+      }
+
+      const area = isMobile ? w * worldH : w * h
       const freeTarget = Math.round(
-        Math.min(nodeCap, Math.max(nodeFloor, (w * h) / nodeBudgetDivisor))
+        Math.min(nodeCap, Math.max(nodeFloor, area / nodeBudgetDivisor))
       )
       nodes = []
 
@@ -182,33 +239,52 @@ const CornerNodeWeb = () => {
         nodes.push(makeNode(ox, oy, 0.35, true))
       }
 
+      const fieldH = isMobile ? worldH : h
       let free = 0
       let guard = 0
       while (free < freeTarget && guard < freeTarget * 24) {
         guard += 1
         const x = rand(0, w)
-        const y = rand(0, h)
+        const y = rand(0, fieldH)
         if (showCorner) {
           const dHub = Math.hypot(x - ox, y - oy)
-          if (dHub < 36 && Math.random() < 0.75) continue
+          if (dHub < 36 && rng() < 0.75) continue
         }
         nodes.push(makeNode(x, y, rand(0.05, 0.95), false))
         free += 1
       }
+
+      syncScrollOffset()
     }
 
     const resize = () => {
       dpr = Math.min(window.devicePixelRatio || 1, maxDpr)
-      w = Math.max(1, window.innerWidth)
-      h = Math.max(1, window.innerHeight)
+      const nextW = Math.max(1, window.innerWidth)
+      const nextH = Math.max(1, window.innerHeight)
+      const widthChanged = Math.abs(nextW - lastSeedWidth) >= 1 || lastSeedWidth === 0
+
+      w = nextW
+      h = nextH
       canvas.width = Math.floor(w * dpr)
       canvas.height = Math.floor(h * dpr)
       canvas.style.width = `${w}px`
       canvas.style.height = `${h}px`
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       updateOrigin()
-      seedKey = ''
-      seedNodes()
+
+      if (isMobile) {
+        // Height-only (URL bar): keep the same predetermined field
+        if (widthChanged || !nodes.length) {
+          seedNodes(true)
+        } else {
+          worldH = Math.max(worldH, computeWorldH())
+          syncScrollOffset()
+        }
+      } else {
+        seedKey = ''
+        seedNodes(true)
+      }
+
       lastScrollY = window.scrollY || document.documentElement.scrollTop || 0
       wake(1200)
     }
@@ -218,7 +294,7 @@ const CornerNodeWeb = () => {
       let ady = dy
       if (isMobile) {
         ady = clamp(ady, -mobileDyCap, mobileDyCap)
-        adx = clamp(adx, -mobileDyCap, mobileDyCap)
+        adx = 0 // never let horizontal input affect the background
       }
       const nx = clamp(adx, -scrollClamp, scrollClamp) * scrollGain
       const ny = clamp(ady, -scrollClamp, scrollClamp) * scrollGain
@@ -241,28 +317,40 @@ const CornerNodeWeb = () => {
       scrollFlushRaf = 0
       const dy = pendingScrollDy
       pendingScrollDy = 0
-      if (Math.abs(dy) <= 0.5) return
+      syncScrollOffset()
+      if (Math.abs(dy) <= 0.5) {
+        wake(wakeHoldScroll)
+        return
+      }
       applyScrollDelta(0, dy)
       if (showCorner) updateOrigin()
     }
 
-    const applyBounceAt = (x, y, allowPush) => {
+    /** Screen-space Y for drawing / hit tests (mobile scrolls the tall field). */
+    const screenY = (worldY) => (isMobile ? worldY - scrollOffsetY : worldY)
+
+    /** World-space Y from a screen / client Y. */
+    const worldFromScreenY = (clientY) => (isMobile ? clientY + scrollOffsetY : clientY)
+
+    const applyBounceAt = (clientX, clientY, allowPush) => {
+      const wx = clientX
+      const wy = worldFromScreenY(clientY)
       nodes.forEach((n) => {
-        const d = Math.hypot(n.x - x, n.y - y)
+        const d = Math.hypot(n.x - wx, n.y - wy)
         if (d >= 200) return
         const strength = 1 - d / 200
         n.pulse = Math.max(n.pulse, strength)
 
         if (allowPush && !n.anchored && d > 0.5) {
           const push = strength * 22
-          const ox = ((n.x - x) / d) * push
-          const oy = ((n.y - y) / d) * push
+          const ox = ((n.x - wx) / d) * push
+          const oy = ((n.y - wy) / d) * push
           n.x += ox
           n.y += oy
           n.baseX += ox * 0.35
           n.baseY += oy * 0.35
-          n.vx += ((n.x - x) / d) * strength * 6
-          n.vy += ((n.y - y) / d) * strength * 6
+          n.vx += ((n.x - wx) / d) * strength * 6
+          n.vy += ((n.y - wy) / d) * strength * 6
         }
       })
       wake(1400)
@@ -383,9 +471,8 @@ const CornerNodeWeb = () => {
         drift.tx = lerp(drift.tx, 0, 0.02)
         drift.ty = lerp(drift.ty, 0, 0.02)
         if (showCorner) updateOrigin()
+        if (isMobile) syncScrollOffset()
 
-        const px = pointer.x
-        const py = pointer.y
         const ox = origin.x * w
         const oy = origin.y * h
 
@@ -402,8 +489,9 @@ const CornerNodeWeb = () => {
               ai += 1
               if (!n?.anchored) continue
               const p = cornerPoint(ray, i / 7.2, ox, oy)
+              // Anchored corner stays in viewport; store in world coords
               n.baseX = n.x = p.x
-              n.baseY = n.y = p.y
+              n.baseY = n.y = isMobile ? p.y + scrollOffsetY : p.y
               n.vx = 0
               n.vy = 0
             }
@@ -411,7 +499,7 @@ const CornerNodeWeb = () => {
           const vertex = nodes[ai]
           if (vertex?.anchored) {
             vertex.baseX = vertex.x = ox
-            vertex.baseY = vertex.y = oy
+            vertex.baseY = vertex.y = isMobile ? oy + scrollOffsetY : oy
             vertex.vx = 0
             vertex.vy = 0
           }
@@ -419,11 +507,13 @@ const CornerNodeWeb = () => {
 
         nodes.forEach((n) => {
           if (n.anchored) {
+            const sx = n.x
+            const sy = screenY(n.y)
             let targetScale = 1
             if (pointer.active) {
-              const d = Math.hypot(n.x - px, n.y - py)
-              if (d < 40) targetScale = 1.2
-              else if (d < 64) targetScale = 1.08
+              const dScreen = Math.hypot(sx - pointer.x, sy - pointer.y)
+              if (dScreen < 40) targetScale = 1.2
+              else if (dScreen < 64) targetScale = 1.08
             }
             targetScale = Math.max(targetScale, 1 + n.pulse * 0.7)
             n.scale = lerp(n.scale, targetScale, targetScale > n.scale ? 0.2 : 0.08)
@@ -443,9 +533,11 @@ const CornerNodeWeb = () => {
 
           let targetScale = 1
           if (pointer.active) {
-            const d = Math.hypot(n.x - px, n.y - py)
-            if (d < 42) targetScale = 1.28
-            else if (d < 70) targetScale = 1.12
+            const sx = n.x
+            const sy = screenY(n.y)
+            const dScreen = Math.hypot(sx - pointer.x, sy - pointer.y)
+            if (dScreen < 42) targetScale = 1.28
+            else if (dScreen < 70) targetScale = 1.12
           }
           targetScale = Math.max(targetScale, 1 + n.pulse * 0.9)
           n.scale = lerp(n.scale, targetScale, targetScale > n.scale ? 0.22 : 0.07)
@@ -455,7 +547,9 @@ const CornerNodeWeb = () => {
 
         ctx.clearRect(0, 0, w, h)
 
-        const g = ctx.createRadialGradient(ox, oy, 10, ox, oy, Math.min(w, h) * 0.85)
+        // Hub glow stays viewport-relative on home
+        const glowCy = showCorner ? oy : h * 0.5
+        const g = ctx.createRadialGradient(ox, glowCy, 10, ox, glowCy, Math.min(w, h) * 0.85)
         g.addColorStop(0, showCorner ? 'rgba(79,209,197,0.22)' : 'rgba(79,209,197,0.14)')
         g.addColorStop(0.4, 'rgba(79,209,197,0.08)')
         g.addColorStop(0.75, 'rgba(83,91,242,0.04)')
@@ -490,16 +584,22 @@ const CornerNodeWeb = () => {
         }
 
         const linkDist = Math.min(w, h) * 0.155
+        const pad = linkDist + 40
 
         for (let i = 0; i < nodes.length; i += 1) {
           const a = nodes[i]
+          const ax = a.x
+          const ay = screenY(a.y)
+
+          // Cull far off-screen nodes on mobile tall field
+          if (isMobile && (ay < -pad || ay > h + pad)) continue
 
           if (!a.anchored && showCorner) {
-            const dCorner = Math.hypot(a.x - ox, a.y - oy)
+            const dCorner = Math.hypot(ax - ox, ay - oy)
             if (dCorner < linkDist * 2.2) {
               const alpha = (1 - dCorner / (linkDist * 2.2)) * 0.45
               ctx.beginPath()
-              ctx.moveTo(a.x, a.y)
+              ctx.moveTo(ax, ay)
               ctx.lineTo(ox, oy)
               ctx.strokeStyle = rgba(TEAL, alpha)
               ctx.lineWidth = 1
@@ -509,12 +609,15 @@ const CornerNodeWeb = () => {
 
           for (let j = i + 1; j < nodes.length; j += 1) {
             const b = nodes[j]
-            const d = dist(a, b)
+            const bx = b.x
+            const by = screenY(b.y)
+            if (isMobile && (by < -pad || by > h + pad)) continue
+            const d = Math.hypot(ax - bx, ay - by)
             if (d > linkDist) continue
             const alpha = (1 - d / linkDist) * 0.65 + Math.max(a.pulse, b.pulse) * 0.25
             ctx.beginPath()
-            ctx.moveTo(a.x, a.y)
-            ctx.lineTo(b.x, b.y)
+            ctx.moveTo(ax, ay)
+            ctx.lineTo(bx, by)
             ctx.strokeStyle = rgba(TEAL, alpha)
             ctx.lineWidth = 1.15
             ctx.stroke()
@@ -522,20 +625,24 @@ const CornerNodeWeb = () => {
         }
 
         nodes.forEach((n) => {
+          const sx = n.x
+          const sy = screenY(n.y)
+          if (isMobile && (sy < -pad || sy > h + pad)) return
+
           const c = mixColor(n.tint)
           const breathe = 1 + Math.sin(n.phase) * 0.1
           const r = n.size * breathe * n.scale
 
-          const glow = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, r * 5)
+          const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 5)
           glow.addColorStop(0, rgba(c, 0.72 + (n.scale - 1) * 0.4))
           glow.addColorStop(1, rgba(c, 0))
           ctx.fillStyle = glow
           ctx.beginPath()
-          ctx.arc(n.x, n.y, r * 5, 0, Math.PI * 2)
+          ctx.arc(sx, sy, r * 5, 0, Math.PI * 2)
           ctx.fill()
 
           ctx.beginPath()
-          ctx.arc(n.x, n.y, r, 0, Math.PI * 2)
+          ctx.arc(sx, sy, r, 0, Math.PI * 2)
           ctx.fillStyle = rgba(c, 1)
           ctx.fill()
         })
@@ -567,7 +674,7 @@ const CornerNodeWeb = () => {
       window.removeEventListener('wheel', onWheel, true)
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [showCorner])
+  }, [showCorner, pathname])
 
   return (
     <div className="corner-node-web" aria-hidden="true">
